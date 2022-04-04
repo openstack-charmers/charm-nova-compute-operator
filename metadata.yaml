@@ -1,0 +1,52 @@
+# Copyright 2022 Billy Olsen
+# See LICENSE file for licensing details.
+name: sunbeam-nova-compute-operator
+summary: OpenStack Nova compute service
+maintainer: OpenStack Charmers <openstack-charmers@lists.ubuntu.com>
+description: |
+  OpenStack Compute, codenamed Nova, is a cloud computing fabric controller. In
+  addition to its "native" API (the OpenStack API), it also supports the Amazon
+  EC2 API.
+  
+  This charm provides the Nova Compute hypervisor service and should be deployed
+  directly to physical servers.
+version: 3
+bases:
+  - name: ubuntu
+    channel: 20.04/stable
+tags:
+- openstack
+
+containers:
+  nova-compute:
+    resource: nova-compute-image
+  ovn-controller:
+    resource: ovn-controller-image
+  neutron-metadata-agent:
+    resource: neutron-metadata-agent-image
+
+resources:
+  nova-compute-image:
+    type: oci-image
+    description: OCI image for OpenStack Nova compute services
+  ovn-controller-image:
+    type: oci-image
+    description: OCI image for the OVN Controller
+  neutron-metadata-agent-image:
+    type: oci-image
+    description: OCI image containing the neutron metadata agent
+
+requires:
+  amqp:
+    interface: rabbitmq
+    limit: 1
+  image-service:
+    interface: glance
+    limit: 1
+  cloud-credentials:
+    interface: keystone-credentials
+    limit: 1
+
+provides:
+  cloud-compute:
+    interface: nova-compute

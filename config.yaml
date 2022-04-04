@@ -1,0 +1,22 @@
+# Copyright 2022 Canonical Ltd
+# See LICENSE file for licensing details.
+#
+
+options:
+  debug:
+    default: False
+    description: Enable debug logging.
+    type: boolean
+
+  default-availability-zone:
+    type: string
+    default: nova
+    description: |
+      Default compute node availability zone.
+
+      This option determines the availability zone to be used when it is not
+      specified in the VM creation request. If this option is not set, the
+      default availability zone 'nova' is used.
+
+      NOTE: Availability zones must be created manually using the
+      'openstack aggregate create' command.

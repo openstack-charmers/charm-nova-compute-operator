@@ -1,0 +1,71 @@
+###############################################################################
+# [ WARNING ]
+# Configuration file maintained by Juju. Local changes may be overwritten.
+###############################################################################
+[DEFAULT]
+
+# If set to true, the logging level will be set to DEBUG instead of the default
+# INFO level (boolean value)
+# Note: This option can be changed without restarting.
+debug = True
+
+# (Optional) The base directory used for relative log_file  paths. This option
+# is ignored if log_config_append is set (string value)
+log_dir = /var/log/nova
+
+# The top-level directory for maintaining Nova's state. For more information,
+# refer to the documentation. (string value)
+state_path = /var/lib/nova
+enabled_apis = osapi_compute,metadata
+
+# The IP address which the host is using to connect to the management network.
+# For more information, refer to the documentation. (string value)
+# my_ip = {{ host_ip }}
+
+# Hostname, FQDN or IP address of this host. For more information, refer to the
+# documentation. (host domain value)
+# {% if use_fqdn_hint and host_fqdn -%}
+# host = {{ host_fqdn }}
+# {% endif -%}
+
+# List of package logging levels in logger=LEVEL pairs. This option is ignored
+# if log_config_append is set (list value)
+# default_log_levels = "amqp=WARN, amqplib=WARN, boto=WARN, qpid=WARN, sqlalchemy=WARN, suds=INFO, oslo.messaging=INFO, oslo_messaging=DEBUG, iso8601=WARN, requests.packages.urllib3.connectionpool=WARN, urllib3.connectionpool=WARN, websocket=WARN, requests.packages.urllib3.util.retry=WARN, urllib3.util.retry=WARN, keystonemiddleware=WARN, routes.middleware=WARN, stevedore=WARN, taskflow=WARN, keystoneauth=WARN, oslo.cache=INFO, dogpile.core.dogpile=INFO, glanceclient=WARN, oslo.privsep.daemon=INFO"
+
+# The network address and optional user credentials for connecting to the
+# messaging backend, in URL format. The expected format is. For more
+# information, refer to the documentation. (string value)
+transport_url = {{ amqp.transport_url }}
+
+vnc_enabled = False
+novnc_enabled = False
+
+compute_driver = libvirt.LibvirtDriver
+
+metadata_workers = 2
+
+{% include "parts/section-identity" %}
+
+{% include "parts/section-neutron" %}
+
+{% if glance_api_servers -%}
+[glance]
+api_servers = {{ glance_api_servers }}
+{% endif -%}
+
+# NOTE(wolsen) Removed vendor data api section
+
+[libvirt]
+virt_type = qemu
+
+# NOTE(wolsen) removed section-oslo-messaging-rabbit, section-oslo-notifications
+
+{% include "parts/section-cinder" %}
+
+[oslo_concurrency]
+lock_path=/var/lock/nova
+
+{% include "parts/section-placement" %}
+
+[wsgi]
+api_paste_config=/etc/nova/api-paste.ini

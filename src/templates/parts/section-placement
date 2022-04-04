@@ -1,0 +1,15 @@
+[placement]
+{% if cloud_credentials.auth_host -%}
+auth_url = {{ cloud_credentials.internal_protocol }}://{{ cloud_credentials.internal_host }}:{{ cloud_credentials.internal_port }}
+auth_type = password
+project_domain_name = {{ cloud_credentials.project_domain_name }}
+user_domain_name = {{ cloud_credentials.user_domain_name }}
+project_name = {{ cloud_credentials.project_name }}
+username = {{ cloud_credentials.username }}
+password = {{ cloud_credentials.password }}
+{% endif -%}
+{% if cloud_credentials.region -%}
+os_region_name = {{ cloud_credentials.region }}
+region_name = {{ cloud_credentials.region }}
+{% endif -%}
+os_interface = internal

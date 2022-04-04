@@ -1,0 +1,15 @@
+[neutron]
+auth_url = {{ cloud_credentials.internal_protocol }}://{{ cloud_credentials.internal_host }}:{{ cloud_credentials.internal_port }}
+auth_type = password
+project_domain_name = {{ cloud_credentials.project_domain_name }}
+user_domain_name = {{ cloud_credentials.user_domain_name }}
+region_name = {{ cloud_credentials.region }}
+project_name = {{ cloud_credentials.project_name }}
+username = {{ cloud_credentials.username }}
+password = {{ cloud_credentials.password }}
+os_interface = internal
+
+{% if metadata_shared_secret -%}
+metadata_proxy_shared_secret = {{ metadata_shared_secret }}
+service_metadata_proxy=True
+{% endif -%}

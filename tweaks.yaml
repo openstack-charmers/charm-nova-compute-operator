@@ -1,0 +1,19 @@
+# This file contains some tweaks that are necessary for the nova-compute
+# charm in order to run with privileges and configuration other than what
+# Juju can provide by default in a Kubernetes operator charm.
+
+Pod:
+  spec:
+    # Using the hostNetwork allows the pod to see which network interface
+    # cards are attached to the host. This is required in order to wire the
+    # OVN/OVS services into the host networking.
+    hostNetwork: True
+
+    # Using the hostPID allows for the virtual machines that are launched to
+    # be persisted across container restarts.
+    hostPID: True
+
+    # Since nova-compute is using hostNetwork, explicitly set the dnsPolicy
+    # to ClusterFirstWithHostNet in order to enable cluster dns resolution
+    # and allow host networking.
+    dnsPolicy: ClusterFirstWithHostNet
