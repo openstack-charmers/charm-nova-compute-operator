@@ -9,6 +9,10 @@ import platform
 from typing import Callable
 from typing import List
 
+from lightkube import ApiError, Client
+from lightkube.resources.apps_v1 import StatefulSet
+from lightkube.types import PatchType
+
 import ops
 
 from ops.framework import StoredState
@@ -39,16 +43,16 @@ class NovaComputePebbleHandler(sunbeam_chandlers.ServicePebbleHandler):
             "summary": "nova compute layer",
             "description": "pebble configuration for nova compute service",
             "services": {
-                "nova-compute": {
-                    "override": "replace",
-                    "summary": "Nova Compute",
-                    "command": "nova-compute",
-                    "startup": "enabled",
-                },
                 "libvirtd": {
                     "override": "replace",
                     "summary": "libvirtd",
                     "command": "/usr/sbin/libvirtd",
+                    "startup": "enabled",
+                },
+                "nova-compute": {
+                    "override": "replace",
+                    "summary": "Nova Compute",
+                    "command": "nova-compute",
                     "startup": "enabled",
                 },
             }
@@ -193,6 +197,70 @@ class NovaComputeOperatorCharm(sunbeam_charm.OSBaseOperatorCharm):
     _stored = StoredState()
     service_name = 'nova-compute'
     openstack_release = 'xena'
+
+    def __init__(self, framework):
+        """
+
+        """
+        super().__init__(framework)
+        self._patch_as_needed()
+
+    def _patch_as_needed(self):
+        """Patches the Kubernetes PodSpec for the application to ensure it
+        has the necessary tweaks for running nova-compute.
+
+        This will only patch the service if there are services that local
+        patches that are required but not applied.
+        """
+        if not self.unit.is_leader():
+            logger.debug('Letting leader unit determine if patching is '
+                         'necessary.')
+            return
+
+        # Note, we could treat this as a podspec charm and use
+        # self.model.pod.set_spec... And we probably should for this particular
+        # scenario, but need to determine how the pod-spec bits work here.
+        # They are deprecated and split between ones that Juju understands and
+        # ones that Juju doesn't.
+        #
+        # Also note that the pod security policies tweaked herein are
+        # deprecated for removal in k8s 1.25. We should migrate to Pod
+        # Security Admission.
+        client = Client()
+        sf_set = client.get(StatefulSet, self.model.app.name,
+                            namespace=self._namespace())
+        pod_spec = sf_set.spec.template.spec
+        needs_patching = False
+        if not pod_spec.hostNetwork:
+            pod_spec.hostNetwork = True
+            needs_patching = True
+
+        if pod_spec.dnsPolicy != 'ClusterFirstWithHostNet':
+            pod_spec.dnsPolicy = 'ClusterFirstWithHostNet'
+            needs_patching = True
+
+        if not needs_patching:
+            logger.debug('No need to patch the StatefulSet. It matches our '
+                         'desired spec')
+            return
+
+        logger.debug('Patching StatefulSet')
+        try:
+            client.patch(StatefulSet, self.model.app.name, sf_set,
+                         patch_type=PatchType.MERGE)
+        except ApiError:
+            logger.exception('Error patching stateful set.')
+
+    def _namespace(self):
+        """Returns the namespace (aka juju model) for the application"""
+        """The Kubernetes namespace we're running in.
+
+        Returns:
+            str: A string containing the name of the current Kubernetes namespace.
+        """
+        ns_file = '/var/run/secrets/kubernetes.io/serviceaccount/namespace'
+        with open(ns_file, 'r') as f:
+            return f.read().strip()
 
     def get_pebble_handlers(self) -> List[sunbeam_chandlers.PebbleHandler]:
         """Returns the available pebble handlers the nova compute charm.
