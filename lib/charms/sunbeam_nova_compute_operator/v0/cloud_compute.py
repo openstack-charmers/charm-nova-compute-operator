@@ -175,8 +175,13 @@ class CloudComputeRequires(Object):
         logger.debug('cloud-compute requires on_changed')
         try:
             unit_relation_data = event.relation.data[event.unit]
-            hostname = unit_relation_data['hostname']
-            availability_zone = unit_relation_data['availability_zone']
+            hostname = unit_relation_data.get('hostname')
+            availability_zone = unit_relation_data.get('availability_zone')
+
+            if not hostname or not availability_zone:
+                logger.debug('Missing hostname or availability zone. Waiting '
+                             'to raise event until ready')
+                return
 
             # TODO(wolsen) Need to get the migration auth type and credentials.
             self.on.compute_nodes_ready.emit(
