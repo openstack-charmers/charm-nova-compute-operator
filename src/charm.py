@@ -5,6 +5,7 @@
 
 import logging
 import platform
+import time
 
 from typing import Callable
 from typing import List
@@ -33,6 +34,50 @@ logger = logging.getLogger(__name__)
 
 class NovaComputePebbleHandler(sunbeam_chandlers.ServicePebbleHandler):
 
+    def _start_service(self, container, service_name, wait_until_started=False):
+        """
+
+        """
+        if service_name not in container.get_services().keys():
+            container.add_layer(
+                service_name,
+                self.get_layer(),
+                combine=True)
+
+        service = container.get_service(service_name)
+        if service.is_running():
+            container.stop(service_name)
+
+        started = False
+        while not started:
+            logger.debug(f'Attempting to start service {service_name}')
+            container.start(service_name)
+
+            if not wait_until_started:
+                break
+
+            time.sleep(0.2)
+            service = container.get_service(service_name)
+            started = service.is_running()
+
+        logger.debug(f'Service {service_name} has started')
+
+    def start_service(self) -> None:
+        """
+
+        """
+        # Need to start libvirt
+        container = self.charm.unit.get_container(self.container_name)
+        if not container:
+            logger.debug(f'{self.container_name} container is not ready. '
+                         'Cannot start service.')
+            return
+
+        for service in ['libvirtd', 'virtlogd', 'nova-compute']:
+            logger.debug(f'Starting service {service} in nova-compute '
+                         'container')
+            self._start_service(container, service, wait_until_started=True)
+
     def get_layer(self):
         """Nova Compute Service
 
@@ -43,6 +88,12 @@ class NovaComputePebbleHandler(sunbeam_chandlers.ServicePebbleHandler):
             "summary": "nova compute layer",
             "description": "pebble configuration for nova compute service",
             "services": {
+                "virtlogd": {
+                    "override": "replace",
+                    "summary": "virtlog",
+                    "command": "/usr/sbin/virtlogd",
+                    "startup": "enabled",
+                },
                 "libvirtd": {
                     "override": "replace",
                     "summary": "libvirtd",
@@ -54,6 +105,8 @@ class NovaComputePebbleHandler(sunbeam_chandlers.ServicePebbleHandler):
                     "summary": "Nova Compute",
                     "command": "nova-compute",
                     "startup": "enabled",
+                    "requires": ["libvirtd", "virtlogd"],
+                    "after": ["libvirtd", "virtlogd"],
                 },
             }
         }
@@ -239,6 +292,13 @@ class NovaComputeOperatorCharm(sunbeam_charm.OSBaseOperatorCharm):
             pod_spec.dnsPolicy = 'ClusterFirstWithHostNet'
             needs_patching = True
 
+        # oslo.privsep needs privileged containers
+        for container in pod_spec.containers:
+            if container.name == 'nova-compute':
+                if not container.securityContext.privileged:
+                    container.securityContext.privileged = True
+                    needs_patching = True
+
         if not needs_patching:
             logger.debug('No need to patch the StatefulSet. It matches our '
                          'desired spec')
@@ -251,12 +311,11 @@ class NovaComputeOperatorCharm(sunbeam_charm.OSBaseOperatorCharm):
         except ApiError:
             logger.exception('Error patching stateful set.')
 
-    def _namespace(self):
-        """Returns the namespace (aka juju model) for the application"""
-        """The Kubernetes namespace we're running in.
+    @staticmethod
+    def _namespace() -> str:
+        """Returns the namespace (aka juju model) for the application
 
-        Returns:
-            str: A string containing the name of the current Kubernetes namespace.
+        :returns: the namespace the charm is currently running in
         """
         ns_file = '/var/run/secrets/kubernetes.io/serviceaccount/namespace'
         with open(ns_file, 'r') as f:
