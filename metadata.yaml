@@ -16,6 +16,8 @@ bases:
     channel: 20.04/stable
 tags:
 - openstack
+source: https://github.com/openstack-charmers/charm-nova-compute-operator
+issues: https://github.com/openstack-charmers/charm-nova-compute-operator/issues
 
 containers:
   nova-compute:
